@@ -27,13 +27,14 @@ function AnimatedSection({ children, delay = 0 }: AnimatedSectionProps) {
       { threshold: 0.1 }
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
+    const sectionElement = sectionRef.current;
+    if (sectionElement) {
+      observer.observe(sectionElement);
     }
 
     return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
+      if (sectionElement) {
+        observer.unobserve(sectionElement);
       }
     };
   }, [delay]);
@@ -189,8 +190,8 @@ export default function Home() {
         <SingularityImage />
         <p>
           As mass compresses into an infinitely small point, the curvature of
-          spacetime becomes infinite. Einstein's equations no longer make sense
-          here.
+          spacetime becomes infinite. Einstein&apos;s equations no longer make
+          sense here.
         </p>
         <ExploreButton href="/black-holes" />
       </AnimatedSection>
@@ -210,7 +211,7 @@ export default function Home() {
         <QuantumImage />
         <p>
           General Relativity breaks down at the quantum level, where particles
-          behave unpredictably and spacetime isn't smooth anymore.
+          behave unpredictably and spacetime isn&apos;t smooth anymore.
         </p>
         <ExploreButton href="/quantum-demo" />
       </AnimatedSection>

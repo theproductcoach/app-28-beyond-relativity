@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 
 // Constants for the simulation
@@ -12,9 +12,18 @@ const SCREEN_X = CANVAS_WIDTH - 150;
 const SLIT_PANEL_X = 350;
 const DEFAULT_PARTICLE_COUNT = 2000;
 
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  detected: boolean;
+  whichSlit: number;
+}
+
 export default function QuantumDemo() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const particlesRef = useRef<any[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
   const detectionPatternRef = useRef<number[]>(Array(CANVAS_HEIGHT).fill(0));
   const animationRef = useRef<number | null>(null);
 
@@ -73,120 +82,131 @@ export default function QuantumDemo() {
       }));
   };
 
-  // Draw the background elements (source, slits, screen)
-  const drawBackground = (ctx: CanvasRenderingContext2D) => {
-    // Clear canvas
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Background
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Draw source
-    ctx.fillStyle = particleType === "electron" ? "#00AAFF" : "#FFAA00";
-    ctx.beginPath();
-    ctx.arc(SOURCE_X, SOURCE_Y, 8, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw slit panel
-    ctx.fillStyle = "#444";
-    ctx.fillRect(SLIT_PANEL_X, 0, 10, CANVAS_HEIGHT);
-
-    // Draw the slits
-    ctx.fillStyle = "#000";
-    const centerY = CANVAS_HEIGHT / 2;
-
-    if (slitCount === 1) {
-      // Single slit in the center
-      ctx.fillRect(SLIT_PANEL_X, centerY - slitWidth / 2, 10, slitWidth);
-    } else {
-      // Top slit
-      ctx.fillRect(
-        SLIT_PANEL_X,
-        centerY - slitSeparation / 2 - slitWidth,
-        10,
-        slitWidth
-      );
-      // Bottom slit
-      ctx.fillRect(SLIT_PANEL_X, centerY + slitSeparation / 2, 10, slitWidth);
-    }
-
-    // Draw screen
-    ctx.fillStyle = "#333";
-    ctx.fillRect(SCREEN_X, 0, 5, CANVAS_HEIGHT);
-
-    // Draw detection pattern
-    const maxCount = Math.max(...detectionPatternRef.current, 1);
-
-    for (let y = 0; y < CANVAS_HEIGHT; y++) {
-      const intensity = detectionPatternRef.current[y] / maxCount;
-      if (intensity > 0) {
-        const colorIntensity = Math.min(255, Math.floor(intensity * 255));
-        ctx.fillStyle =
-          particleType === "electron"
-            ? `rgba(0, ${colorIntensity}, ${255}, 0.8)`
-            : `rgba(255, ${colorIntensity}, 0, 0.8)`;
-        ctx.fillRect(SCREEN_X + 6, y, 50 * intensity, 1);
-      }
-    }
-
-    // Draw labels
-    ctx.fillStyle = "#FFF";
-    ctx.font = "16px Arial";
-    ctx.fillText("Source", SOURCE_X - 20, SOURCE_Y + 30);
-    ctx.fillText("Slits", SLIT_PANEL_X - 10, 30);
-    ctx.fillText("Detector Screen", SCREEN_X + 10, 30);
-
-    // Draw progress counter
-    ctx.fillStyle = "#FFF";
-    ctx.font = "14px Arial";
-    ctx.fillText(`Particles: ${completedParticles}/${particleCount}`, 20, 30);
-  };
-
   // Calculate quantum wave interference
-  const calculateQuantumInterference = (
-    y: number,
-    slit1Y: number,
-    slit2Y: number
-  ) => {
-    if (particleType === "photon") {
-      // Constants for photon waves
-      const k = 0.2; // Wave number
-      const lambda = (2 * Math.PI) / k; // Wavelength
+  const calculateQuantumInterference = useCallback(
+    (y: number, slit1Y: number, slit2Y: number) => {
+      if (particleType === "photon") {
+        // Constants for photon waves
+        const k = 0.2; // Wave number
+        // Wavelength is not used but kept for reference
+        // const lambda = (2 * Math.PI) / k;
 
-      // Distance from slits to point on screen
-      const d1 = Math.sqrt(
-        Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit1Y, 2)
-      );
-      const d2 = Math.sqrt(
-        Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit2Y, 2)
-      );
+        // Distance from slits to point on screen
+        const d1 = Math.sqrt(
+          Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit1Y, 2)
+        );
+        const d2 = Math.sqrt(
+          Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit2Y, 2)
+        );
 
-      // Phase difference
-      const phaseDiff = k * (d2 - d1);
+        // Phase difference
+        const phaseDiff = k * (d2 - d1);
 
-      // Probability amplitude considering interference
-      // Use cos² for constructive/destructive interference
-      return Math.pow(Math.cos(phaseDiff / 2), 2) * 3.0; // Amplify effect for visibility
-    } else {
-      // Electron has a shorter effective wavelength
-      const k = 0.5; // Increased wave number for more visible bands
-      const lambda = (2 * Math.PI) / k; // Wavelength
+        // Probability amplitude considering interference
+        // Use cos² for constructive/destructive interference
+        return Math.pow(Math.cos(phaseDiff / 2), 2) * 3.0; // Amplify effect for visibility
+      } else {
+        // Electron has a shorter effective wavelength
+        const k = 0.5; // Increased wave number for more visible bands
+        // Wavelength is not used but kept for reference
+        // const lambda = (2 * Math.PI) / k;
 
-      const d1 = Math.sqrt(
-        Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit1Y, 2)
-      );
-      const d2 = Math.sqrt(
-        Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit2Y, 2)
-      );
+        const d1 = Math.sqrt(
+          Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit1Y, 2)
+        );
+        const d2 = Math.sqrt(
+          Math.pow(SCREEN_X - SLIT_PANEL_X, 2) + Math.pow(y - slit2Y, 2)
+        );
 
-      const phaseDiff = k * (d2 - d1);
-      return Math.pow(Math.cos(phaseDiff / 2), 2) * 3.0; // Amplify effect for visibility
-    }
-  };
+        const phaseDiff = k * (d2 - d1);
+        return Math.pow(Math.cos(phaseDiff / 2), 2) * 3.0; // Amplify effect for visibility
+      }
+    },
+    [particleType]
+  );
+
+  // Draw the background elements (source, slits, screen)
+  const drawBackground = useCallback(
+    (ctx: CanvasRenderingContext2D) => {
+      // Clear canvas
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Background
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+      // Draw source
+      ctx.fillStyle = particleType === "electron" ? "#00AAFF" : "#FFAA00";
+      ctx.beginPath();
+      ctx.arc(SOURCE_X, SOURCE_Y, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw slit panel
+      ctx.fillStyle = "#444";
+      ctx.fillRect(SLIT_PANEL_X, 0, 10, CANVAS_HEIGHT);
+
+      // Draw the slits
+      ctx.fillStyle = "#000";
+      const centerY = CANVAS_HEIGHT / 2;
+
+      if (slitCount === 1) {
+        // Single slit in the center
+        ctx.fillRect(SLIT_PANEL_X, centerY - slitWidth / 2, 10, slitWidth);
+      } else {
+        // Top slit
+        ctx.fillRect(
+          SLIT_PANEL_X,
+          centerY - slitSeparation / 2 - slitWidth,
+          10,
+          slitWidth
+        );
+        // Bottom slit
+        ctx.fillRect(SLIT_PANEL_X, centerY + slitSeparation / 2, 10, slitWidth);
+      }
+
+      // Draw screen
+      ctx.fillStyle = "#333";
+      ctx.fillRect(SCREEN_X, 0, 5, CANVAS_HEIGHT);
+
+      // Draw detection pattern
+      const maxCount = Math.max(...detectionPatternRef.current, 1);
+
+      for (let y = 0; y < CANVAS_HEIGHT; y++) {
+        const intensity = detectionPatternRef.current[y] / maxCount;
+        if (intensity > 0) {
+          const colorIntensity = Math.min(255, Math.floor(intensity * 255));
+          ctx.fillStyle =
+            particleType === "electron"
+              ? `rgba(0, ${colorIntensity}, ${255}, 0.8)`
+              : `rgba(255, ${colorIntensity}, 0, 0.8)`;
+          ctx.fillRect(SCREEN_X + 6, y, 50 * intensity, 1);
+        }
+      }
+
+      // Draw labels
+      ctx.fillStyle = "#FFF";
+      ctx.font = "16px Arial";
+      ctx.fillText("Source", SOURCE_X - 20, SOURCE_Y + 30);
+      ctx.fillText("Slits", SLIT_PANEL_X - 10, 30);
+      ctx.fillText("Detector Screen", SCREEN_X + 10, 30);
+
+      // Draw progress counter
+      ctx.fillStyle = "#FFF";
+      ctx.font = "14px Arial";
+      ctx.fillText(`Particles: ${completedParticles}/${particleCount}`, 20, 30);
+    },
+    [
+      particleType,
+      slitCount,
+      slitWidth,
+      slitSeparation,
+      completedParticles,
+      particleCount,
+    ]
+  );
 
   // Update and draw a frame of the simulation
-  const updateAndDraw = () => {
+  const updateAndDraw = useCallback(() => {
     if (!canvasRef.current) return;
 
     const ctx = canvasRef.current.getContext("2d");
@@ -229,12 +249,12 @@ export default function QuantumDemo() {
           // Determine which slit the particle goes through
           let passedThroughSlit = false;
 
-          slits.forEach((slit, index) => {
+          slits.forEach((slit, _slitIndex) => {
             if (
               particle.y > slit.y - slit.height / 2 &&
               particle.y < slit.y + slit.height / 2
             ) {
-              particle.whichSlit = index + 1;
+              particle.whichSlit = _slitIndex + 1;
               passedThroughSlit = true;
 
               // Add some randomness to show measurement effect
@@ -254,7 +274,7 @@ export default function QuantumDemo() {
           // Calculate probability of passing through any slit
           let passedThroughSlit = false;
 
-          slits.forEach((slit, index) => {
+          slits.forEach((slit) => {
             if (
               particle.y > slit.y - slit.height / 2 &&
               particle.y < slit.y + slit.height / 2
@@ -327,7 +347,17 @@ export default function QuantumDemo() {
     } else if (completed >= particleCount) {
       setRunning(false);
     }
-  };
+  }, [
+    observe,
+    slitCount,
+    slitWidth,
+    slitSeparation,
+    particleType,
+    particleCount,
+    running,
+    drawBackground,
+    calculateQuantumInterference,
+  ]);
 
   // Handle animation loop
   useEffect(() => {
@@ -340,7 +370,7 @@ export default function QuantumDemo() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [running]);
+  }, [running, updateAndDraw]);
 
   // Initialize canvas on mount
   useEffect(() => {
@@ -356,7 +386,7 @@ export default function QuantumDemo() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [drawBackground]);
 
   // Redraw when parameters change
   useEffect(() => {
@@ -366,7 +396,14 @@ export default function QuantumDemo() {
         drawBackground(ctx);
       }
     }
-  }, [slitCount, slitWidth, slitSeparation, particleType, completedParticles]);
+  }, [
+    slitCount,
+    slitWidth,
+    slitSeparation,
+    particleType,
+    completedParticles,
+    drawBackground,
+  ]);
 
   // Fade in content on page load
   useEffect(() => {
@@ -392,7 +429,7 @@ export default function QuantumDemo() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [drawBackground]);
 
   return (
     <main
@@ -767,7 +804,7 @@ export default function QuantumDemo() {
                     marginBottom: "0.5rem",
                   }}
                 >
-                  What You're Seeing
+                  What You&apos;re Seeing
                 </h4>
                 <p>
                   In the <strong>Interference Pattern</strong> mode, particles
@@ -789,11 +826,11 @@ export default function QuantumDemo() {
                   The Observer Effect
                 </h4>
                 <p>
-                  When you switch to <strong>Classical</strong> mode, you're
-                  "watching" which slit each particle goes through. According to
-                  quantum mechanics, this measurement forces the particle to
-                  choose a specific path, destroying the wave-like behavior and
-                  interference pattern.
+                  When you switch to <strong>Classical</strong> mode,
+                  you&apos;re &quot;watching&quot; which slit each particle goes
+                  through. According to quantum mechanics, this measurement
+                  forces the particle to choose a specific path, destroying the
+                  wave-like behavior and interference pattern.
                 </p>
               </div>
 
@@ -813,8 +850,8 @@ export default function QuantumDemo() {
                     observe the striped interference pattern
                   </li>
                   <li>
-                    Switch to Two Distinct Bands mode and notice how the pattern
-                    changes to two distinct bands
+                    Switch to Classical mode and notice how the pattern changes
+                    to two distinct bands
                   </li>
                   <li>
                     Try a single slit and see diffraction rather than
@@ -840,25 +877,25 @@ export default function QuantumDemo() {
               Why Einstein Was Troubled By Quantum Mechanics
             </h2>
             <p>
-              Albert Einstein famously said "God does not play dice with the
-              universe" in response to the probabilistic nature of quantum
-              mechanics. The double-slit experiment reveals a fundamental limit
-              to Einstein's classical view of physics.
+              Albert Einstein famously said &quot;God does not play dice with
+              the universe&quot; in response to the probabilistic nature of
+              quantum mechanics. The double-slit experiment reveals a
+              fundamental limit to Einstein&apos;s classical view of physics.
             </p>
             <p style={{ marginTop: "1rem" }}>
-              In quantum mechanics, particles exist in "superposition" states
-              until observed. This means they simultaneously follow all possible
-              paths—traveling through both slits at once—creating wave-like
-              interference patterns. But when we try to observe which path they
-              take, the very act of measurement forces the particle to choose
-              just one path.
+              In quantum mechanics, particles exist in &quot;superposition&quot;
+              states until observed. This means they simultaneously follow all
+              possible paths—traveling through both slits at once—creating
+              wave-like interference patterns. But when we try to observe which
+              path they take, the very act of measurement forces the particle to
+              choose just one path.
             </p>
             <p style={{ marginTop: "1rem" }}>
-              This behavior, which Einstein called "spooky action," represents a
-              profound breakdown in our ability to predict the exact behavior of
-              individual particles—one of the reasons why Einstein's
-              deterministic view of physics fails at the quantum scale, where
-              probability and uncertainty rule.
+              This behavior, which Einstein called &quot;spooky action,&quot;
+              represents a profound breakdown in our ability to predict the
+              exact behavior of individual particles—one of the reasons why
+              Einstein&apos;s deterministic view of physics fails at the quantum
+              scale, where probability and uncertainty rule.
             </p>
           </section>
         </div>

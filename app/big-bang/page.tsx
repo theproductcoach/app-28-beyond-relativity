@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 // Define key cosmic events in the universe timeline
 const cosmicEvents = [
@@ -493,7 +492,7 @@ export default function BigBang() {
             </p>
             <p style={{ marginTop: "1rem" }}>
               One of the most significant discoveries in cosmology was that the
-              universe isn't just expanding—it's accelerating. This finding,
+              universe isn&apos;t just expanding—it&apos;s accelerating. This finding,
               which earned the 2011 Nobel Prize in Physics, suggests the
               presence of a mysterious force called dark energy pushing the
               universe apart.
@@ -501,8 +500,18 @@ export default function BigBang() {
             <p style={{ marginTop: "1rem" }}>
               At the very beginning (t=0), physics as we know it breaks down
               completely. This singularity represents one of the fundamental
-              limits of Einstein's equations, similar to the center of a black
+              limits of Einstein&apos;s equations, similar to the center of a black
               hole.
+            </p>
+            <p style={{ marginTop: "1.5rem" }}>
+              At the quantum scale, it&apos;s impossible to precisely measure
+              both position and momentum simultaneously, and we can&apos;t
+              predict exact outcomes, only probabilities.
+            </p>
+            <p style={{ marginTop: "1.5rem" }}>
+              This breakdown in determinism deeply troubled Einstein, who
+              famously said, &quot;God does not play dice with the
+              universe.&quot;
             </p>
           </section>
         </div>

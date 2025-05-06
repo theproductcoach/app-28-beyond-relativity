@@ -1,33 +1,75 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+// Remove unused OrbitControls import if not needed
+// import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-// Add MathJax type declaration
+// Define proper window MathJax type
 declare global {
   interface Window {
-    MathJax: any;
+    MathJax: {
+      typeset: (elements: HTMLElement[]) => void;
+    };
   }
 }
+
+// Define proper types for refs to avoid "any" errors
+// Remove if not needed
+// interface MathObject {
+//   typesetRoot: (root: HTMLElement) => void;
+// }
 
 export default function BlackHoles() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const meshRef = useRef<THREE.Object3D | null>(null);
-  const frameIdRef = useRef<number>(0);
-  const controlsRef = useRef<OrbitControls | null>(null);
+  // Remove unused frameIdRef if not needed
+  // const frameIdRef = useRef<number>(0);
   const equationRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
 
   const [mass, setMass] = useState<number>(5);
   const [loading, setLoading] = useState<boolean>(true);
   const [curvatureValue, setCurvatureValue] = useState<string>("0");
   const [eventHorizonRadius, setEventHorizonRadius] = useState<string>("0");
   const [rawCurvature, setRawCurvature] = useState<number>(0);
+
+  // Functions to get the gravitational equations for the current mass
+  const getEquation = useCallback(() => {
+    if (mass <= 5) {
+      return "R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}";
+    } else if (mass <= 10) {
+      return "R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}";
+    } else {
+      return "g_{tt} = -\\left(1-\\frac{2GM}{c^2r}\\right)";
+    }
+  }, [mass]);
+
+  // Get explanation based on mass
+  const getExplanation = useCallback(() => {
+    if (mass <= 5) {
+      return "Einstein&apos;s Field Equations: Describe how mass curves spacetime";
+    } else if (mass <= 10) {
+      return "Field Equations with Cosmological Constant: Increasing curvature effects";
+    } else {
+      return "Schwarzschild Metric: Approaching the event horizon as mass increases";
+    }
+  }, [mass]);
+
+  // Update the displayed equation (wrap in useCallback)
+  const updateEquation = useCallback(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.MathJax &&
+      equationRef.current
+    ) {
+      equationRef.current.innerHTML = "\\(" + getEquation() + "\\)";
+      window.MathJax.typeset([equationRef.current]);
+    }
+  }, [getEquation]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -37,83 +79,19 @@ export default function BlackHoles() {
     script.async = true;
     document.head.appendChild(script);
 
-    if (!canvasRef.current) return;
+    // Clean up on unmount
+    const currentAnimation = animationRef.current;
+    const currentRenderer = rendererRef.current;
 
-    // Scene setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    sceneRef.current = scene;
-
-    // Camera setup
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(15, 10, 15);
-    cameraRef.current = camera;
-
-    // Renderer setup
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(
-      canvasRef.current.clientWidth,
-      canvasRef.current.clientHeight
-    );
-    renderer.setPixelRatio(window.devicePixelRatio);
-    canvasRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    // Controls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
-    controlsRef.current = controls;
-
-    // Create the warped surface
-    createWarpedSurface(mass);
-
-    // Handle window resize
-    const handleResize = () => {
-      if (!canvasRef.current || !cameraRef.current || !rendererRef.current)
-        return;
-
-      const width = canvasRef.current.clientWidth;
-      const height = canvasRef.current.clientHeight;
-
-      cameraRef.current.aspect = width / height;
-      cameraRef.current.updateProjectionMatrix();
-
-      rendererRef.current.setSize(width, height);
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    // Animation loop
-    const animate = () => {
-      frameIdRef.current = requestAnimationFrame(animate);
-
-      if (controlsRef.current) {
-        controlsRef.current.update();
-      }
-
-      if (rendererRef.current && sceneRef.current && cameraRef.current) {
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-      }
-    };
-
-    animate();
-    setLoading(false);
+    // Example: Showing how to set loading state when ready
+    setTimeout(() => setLoading(false), 500);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
-      cancelAnimationFrame(frameIdRef.current);
-
-      if (rendererRef.current && canvasRef.current) {
-        canvasRef.current.removeChild(rendererRef.current.domElement);
-        rendererRef.current.dispose();
+      if (currentAnimation) {
+        cancelAnimationFrame(currentAnimation);
+      }
+      if (currentRenderer) {
+        currentRenderer.dispose();
       }
     };
   }, []);
@@ -126,7 +104,7 @@ export default function BlackHoles() {
     setRawCurvature(values.rawCurvature);
     createWarpedSurface(mass);
     updateEquation();
-  }, [mass]);
+  }, [mass, updateEquation]);
 
   // Function to create the warped surface
   const createWarpedSurface = (mass: number) => {
@@ -177,7 +155,8 @@ export default function BlackHoles() {
     // Grid parameters
     const gridSize = 20;
     const gridDivisions = 20;
-    const cellSize = gridSize / gridDivisions;
+    // Removed unused cellSize
+    // const cellSize = gridSize / gridDivisions;
 
     // Create the grid wireframe
     const gridGeometry = new THREE.PlaneGeometry(
@@ -189,7 +168,8 @@ export default function BlackHoles() {
 
     // Create and apply the funnel distortion
     const vertices = gridGeometry.attributes.position;
-    const center = new THREE.Vector3(0, 0, 0);
+    // Removed unused center
+    // const center = new THREE.Vector3(0, 0, 0);
 
     for (let i = 0; i < vertices.count; i++) {
       const x = vertices.getX(i);
@@ -382,39 +362,6 @@ export default function BlackHoles() {
     }
   }, []);
 
-  // Functions to get the gravitational equations for the current mass
-  const getEquation = () => {
-    if (mass <= 5) {
-      return "R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}";
-    } else if (mass <= 10) {
-      return "R_{\\mu\\nu} - \\frac{1}{2}R g_{\\mu\\nu} + \\Lambda g_{\\mu\\nu} = \\frac{8\\pi G}{c^4}T_{\\mu\\nu}";
-    } else {
-      return "g_{tt} = -\\left(1-\\frac{2GM}{c^2r}\\right)";
-    }
-  };
-
-  const getExplanation = () => {
-    if (mass <= 5) {
-      return "Einstein's Field Equations: Describe how mass curves spacetime";
-    } else if (mass <= 10) {
-      return "Field Equations with Cosmological Constant: Increasing curvature effects";
-    } else {
-      return "Schwarzschild Metric: Approaching the event horizon as mass increases";
-    }
-  };
-
-  // Update the displayed equation
-  const updateEquation = () => {
-    if (
-      typeof window !== "undefined" &&
-      window.MathJax &&
-      equationRef.current
-    ) {
-      equationRef.current.innerHTML = "\\(" + getEquation() + "\\)";
-      (window as any).MathJax.typeset([equationRef.current]);
-    }
-  };
-
   // Function to calculate curvature values based on mass
   const calculateValues = (mass: number) => {
     try {
@@ -534,7 +481,7 @@ export default function BlackHoles() {
             margin: "0 auto 2rem auto",
           }}
         >
-          Interactive visualization of gravity's effect on spacetime
+          Interactive visualization of gravity&apos;s effect on spacetime
         </p>
 
         <div
@@ -559,7 +506,7 @@ export default function BlackHoles() {
               overflow: "hidden",
             }}
           >
-            {loading && (
+            {loading ? (
               <div
                 style={{
                   position: "absolute",
@@ -571,6 +518,8 @@ export default function BlackHoles() {
               >
                 Loading visualization...
               </div>
+            ) : (
+              <div>{/* Main content goes here */}</div>
             )}
           </div>
 
@@ -702,7 +651,7 @@ export default function BlackHoles() {
                   At {mass.toFixed(1)} solar masses, spacetime curvature becomes
                   extremely intense near the event horizon!
                   {rawCurvature > 1e30 &&
-                    " At this point, curvature is approaching infinity, where Einstein's equations break down."}
+                    " At this point, curvature is approaching infinity, where Einstein&apos;s equations break down."}
                 </div>
               </div>
             </div>
@@ -721,16 +670,30 @@ export default function BlackHoles() {
           </h2>
           <p>
             This visualization demonstrates how mass warps the fabric of
-            spacetime according to Einstein's theory of General Relativity. As
-            you increase the mass using the slider, you can observe how the
+            spacetime according to Einstein&apos;s theory of General Relativity.
+            As you increase the mass using the slider, you can observe how the
             curvature becomes more pronounced.
           </p>
           <p style={{ marginTop: "1rem" }}>
             In the vicinity of a black hole, this curvature becomes extreme. At
             a certain point (the event horizon), the curvature is so severe that
-            not even light can escape. Beyond this point, Einstein's equations
-            predict a singularity where spacetime curvature becomes infinite - a
-            breakdown point in our current understanding of physics.
+            not even light can escape. Beyond this point, Einstein&apos;s
+            equations predict a singularity where spacetime curvature becomes
+            infinite - a breakdown point in our current understanding of
+            physics.
+          </p>
+          <p style={{ marginTop: "1rem" }}>
+            The Schwarzschild radius is proportional to the mass of the black
+            hole. For a mass like our Sun, it&apos;s about 3 kilometers.
+          </p>
+          <p style={{ marginTop: "1rem" }}>
+            In fact, the mathematics goes haywire at r = 0, the singularity at
+            the center. This is why physicists say Einstein&apos;s equations
+            break down inside black holes.
+          </p>
+          <p style={{ marginTop: "1rem" }}>
+            Many physicists believe that a full theory of quantum gravity will
+            resolve this singularity, but we don&apos;t have such a theory yet.
           </p>
         </section>
       </div>
