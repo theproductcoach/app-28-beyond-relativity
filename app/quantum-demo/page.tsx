@@ -537,12 +537,12 @@ export default function QuantumDemo() {
               width: "100%",
               maxWidth: "700px",
               backgroundColor: "rgba(52, 152, 219, 0.1)",
-              padding: "1.5rem",
+              padding: "1.2rem",
               borderRadius: "8px",
               marginBottom: "2rem",
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "1.5rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "1.2rem",
             }}
           >
             {/* Left column */}
@@ -725,8 +725,10 @@ export default function QuantumDemo() {
           <div
             style={{
               display: "flex",
-              gap: "1rem",
+              flexWrap: "wrap",
+              gap: "0.8rem",
               marginBottom: "2rem",
+              justifyContent: "center",
             }}
           >
             <button
@@ -736,11 +738,14 @@ export default function QuantumDemo() {
                 backgroundColor: running ? "#555" : "#3498db",
                 color: "white",
                 border: "none",
-                padding: "0.8rem 1.5rem",
+                padding: "0.8rem 1.2rem",
                 borderRadius: "4px",
                 cursor: running ? "default" : "pointer",
-                fontSize: "1rem",
+                fontSize: "0.95rem",
                 fontWeight: "bold",
+                minWidth: "120px",
+                maxWidth: "180px",
+                flex: "1 1 auto",
               }}
             >
               {running ? "Running..." : "Start Experiment"}
@@ -751,10 +756,13 @@ export default function QuantumDemo() {
                 backgroundColor: "#e74c3c",
                 color: "white",
                 border: "none",
-                padding: "0.8rem 1.5rem",
+                padding: "0.8rem 1.2rem",
                 borderRadius: "4px",
                 cursor: "pointer",
-                fontSize: "1rem",
+                fontSize: "0.95rem",
+                minWidth: "80px",
+                maxWidth: "120px",
+                flex: "1 1 auto",
               }}
             >
               Reset
@@ -765,10 +773,13 @@ export default function QuantumDemo() {
                 backgroundColor: "#2c3e50",
                 color: "white",
                 border: "none",
-                padding: "0.8rem 1.5rem",
+                padding: "0.8rem 1.2rem",
                 borderRadius: "4px",
                 cursor: "pointer",
-                fontSize: "1rem",
+                fontSize: "0.95rem",
+                minWidth: "120px",
+                maxWidth: "180px",
+                flex: "1 1 auto",
               }}
             >
               {showExplanation ? "Hide Explanation" : "Show Explanation"}

@@ -80,9 +80,9 @@ const cosmicEvents = [
 
 export default function BigBang() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [time, setTime] = useState<number>(50);
+  const [time, setTime] = useState<number>(0);
   const [playing, setPlaying] = useState<boolean>(false);
-  const [currentEvent, setCurrentEvent] = useState(cosmicEvents[4]); // Start at nucleosynthesis
+  const [currentEvent, setCurrentEvent] = useState(cosmicEvents[0]); // Start at Big Bang (t=0)
   const animationRef = useRef<number | null>(null);
 
   // Handle time slider change
@@ -109,7 +109,7 @@ export default function BigBang() {
       let frameCount = time;
 
       const animate = () => {
-        frameCount += 0.2;
+        frameCount += 0.05;
         if (frameCount > 100) {
           frameCount = 100;
           setPlaying(false);
@@ -405,7 +405,11 @@ export default function BigBang() {
                   fontSize: "0.9rem",
                 }}
               >
-                {playing ? "Pause" : "Play Expansion"}
+                {playing
+                  ? "Pause"
+                  : time === 0
+                  ? "Start Big Bang"
+                  : "Continue Expansion"}
               </button>
             </div>
 
@@ -492,16 +496,16 @@ export default function BigBang() {
             </p>
             <p style={{ marginTop: "1rem" }}>
               One of the most significant discoveries in cosmology was that the
-              universe isn&apos;t just expanding—it&apos;s accelerating. This finding,
-              which earned the 2011 Nobel Prize in Physics, suggests the
-              presence of a mysterious force called dark energy pushing the
+              universe isn&apos;t just expanding—it&apos;s accelerating. This
+              finding, which earned the 2011 Nobel Prize in Physics, suggests
+              the presence of a mysterious force called dark energy pushing the
               universe apart.
             </p>
             <p style={{ marginTop: "1rem" }}>
               At the very beginning (t=0), physics as we know it breaks down
               completely. This singularity represents one of the fundamental
-              limits of Einstein&apos;s equations, similar to the center of a black
-              hole.
+              limits of Einstein&apos;s equations, similar to the center of a
+              black hole.
             </p>
             <p style={{ marginTop: "1.5rem" }}>
               At the quantum scale, it&apos;s impossible to precisely measure
