@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import * as THREE from "three";
-// Remove unused OrbitControls import if not needed
-// import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+// Uncomment and use OrbitControls for interactive visualization
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 // Define proper window MathJax type
 declare global {
@@ -22,10 +22,12 @@ declare global {
 // }
 
 export default function BlackHoles() {
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const meshRef = useRef<THREE.Object3D | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
   // Remove unused frameIdRef if not needed
   // const frameIdRef = useRef<number>(0);
   const equationRef = useRef<HTMLDivElement>(null);
@@ -73,36 +75,124 @@ export default function BlackHoles() {
 
   // Initialize Three.js scene
   useEffect(() => {
-    // Load MathJax for equation rendering
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
-    script.async = true;
-    document.head.appendChild(script);
+    // Initialize Three.js scene
+    if (canvasRef.current) {
+      // Clear any existing renderer
+      if (rendererRef.current && canvasRef.current.contains(rendererRef.current.domElement)) {
+        canvasRef.current.removeChild(rendererRef.current.domElement);
+      }
+      
+      // Create the scene if it doesn't exist
+      if (!sceneRef.current) {
+        const scene = new THREE.Scene();
+        sceneRef.current = scene;
+      }
+      
+      // Create a camera if it doesn't exist
+      if (!cameraRef.current) {
+        const camera = new THREE.PerspectiveCamera(
+          60, // wider field of view
+          canvasRef.current.clientWidth / canvasRef.current.clientHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0, 15, 12); // Moved up and closer
+        camera.lookAt(0, -2, 0); // Look slightly down
+        cameraRef.current = camera;
+      }
+      
+      // Create a renderer
+      try {
+        const renderer = new THREE.WebGLRenderer({ 
+          antialias: true,
+          alpha: true
+        });
+        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
+        renderer.setClearColor(0x000000);
+        canvasRef.current.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
+        
+        // Add orbit controls for interaction
+        if (cameraRef.current) {
+          if (controlsRef.current) {
+            controlsRef.current.dispose();
+          }
+          
+          const controls = new OrbitControls(cameraRef.current, renderer.domElement);
+          controls.enableDamping = true; // Add smooth damping effect
+          controls.dampingFactor = 0.1;
+          controls.rotateSpeed = 0.7;
+          controls.zoomSpeed = 1.0;
+          controls.minDistance = 5; // Prevent zooming too close
+          controls.maxDistance = 40; // Limit max zoom out
+          controls.maxPolarAngle = Math.PI / 1.5; // Limit vertical rotation
+          controls.target.set(0, -2, 0); // Set the center point of rotation
+          controlsRef.current = controls;
+        }
+        
+        // Initialize the warped surface with current mass
+        createWarpedSurface(mass);
+        
+        // Animation function
+        const animate = () => {
+          // Skip if renderer has been disposed
+          if (!rendererRef.current) return;
+          
+          const animationId = requestAnimationFrame(animate);
+          animationRef.current = animationId;
+          
+          // Update controls in animation loop
+          if (controlsRef.current) {
+            controlsRef.current.update();
+          }
+          
+          // Render only if all elements exist
+          if (sceneRef.current && cameraRef.current) {
+            renderer.render(sceneRef.current, cameraRef.current);
+          }
+        };
+        
+        // Start animation
+        animate();
+        
+        // Set loading to false after everything is initialized
+        setTimeout(() => setLoading(false), 500);
+      } catch (error) {
+        console.error("Error initializing Three.js:", error);
+        setLoading(false);
+      }
+    }
 
     // Clean up on unmount
-    const currentAnimation = animationRef.current;
-    const currentRenderer = rendererRef.current;
-
-    // Example: Showing how to set loading state when ready
-    setTimeout(() => setLoading(false), 500);
-
     return () => {
-      if (currentAnimation) {
-        cancelAnimationFrame(currentAnimation);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
-      if (currentRenderer) {
-        currentRenderer.dispose();
+      
+      if (controlsRef.current) {
+        controlsRef.current.dispose();
+        controlsRef.current = null;
+      }
+      
+      if (rendererRef.current) {
+        if (canvasRef.current && canvasRef.current.contains(rendererRef.current.domElement)) {
+          canvasRef.current.removeChild(rendererRef.current.domElement);
+        }
+        rendererRef.current.dispose();
+        rendererRef.current = null;
       }
     };
-  }, []);
+  }, [mass]);
 
   // Create/update the warped surface when mass changes
   useEffect(() => {
+    if (!sceneRef.current) return; // Skip if scene isn't initialized
+    
     const values = calculateValues(mass);
     setCurvatureValue(values.curvature);
     setEventHorizonRadius(values.radius);
     setRawCurvature(values.rawCurvature);
-    createWarpedSurface(mass);
     updateEquation();
   }, [mass, updateEquation]);
 
@@ -421,6 +511,53 @@ export default function BlackHoles() {
     }
   };
 
+  // Handle window resize to keep canvas responsive
+  useEffect(() => {
+    const handleResize = () => {
+      if (canvasRef.current && rendererRef.current && cameraRef.current) {
+        const width = canvasRef.current.clientWidth;
+        const height = canvasRef.current.clientHeight;
+        
+        // Update camera aspect ratio
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix();
+        
+        // Update renderer size
+        rendererRef.current.setSize(width, height);
+        
+        // No need to update controls as they automatically adapt to camera changes
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // Load MathJax only once on component mount
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+    script.async = true;
+    document.head.appendChild(script);
+    
+    script.onload = () => {
+      // Call updateEquation when MathJax is loaded
+      if (updateEquation) {
+        updateEquation();
+      }
+    };
+    
+    return () => {
+      // Remove script if component unmounts during loading
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, [updateEquation]);
+
   return (
     <main
       style={{
@@ -495,7 +632,6 @@ export default function BlackHoles() {
         >
           {/* Left side: 3D visualization */}
           <div
-            ref={canvasRef}
             style={{
               width: "100%",
               height: "400px",
@@ -506,6 +642,14 @@ export default function BlackHoles() {
               overflow: "hidden",
             }}
           >
+            <div 
+              ref={canvasRef}
+              style={{ 
+                width: "100%", 
+                height: "100%" 
+              }}
+            />
+            
             {loading ? (
               <div
                 style={{
@@ -514,12 +658,28 @@ export default function BlackHoles() {
                   left: "50%",
                   transform: "translate(-50%, -50%)",
                   color: "white",
+                  zIndex: 10
                 }}
               >
                 Loading visualization...
               </div>
             ) : (
-              <div>{/* Main content goes here */}</div>
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "10px",
+                  left: "10px",
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: "0.9rem",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
+                  pointerEvents: "none",
+                  zIndex: 10
+                }}
+              >
+                Drag to rotate • Scroll to zoom • Shift+drag to pan
+              </div>
             )}
           </div>
 
